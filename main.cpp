@@ -8,6 +8,8 @@
 //マクロ定義
 #define TAMA_DIV_MAX	4	//弾の画像の最大数
 #define TAMA_MAX		50	//弾の総数
+#define TEKI_KIND		8	//敵の種類
+#define TEKI_MAX		10	//敵の数
 
 //画像の構造体
 struct IMAGE
@@ -123,6 +125,28 @@ int tamaShotCntMAX = 10;
 
 //プレイヤー
 CHARACTOR player;
+
+//背景画像
+IMAGE back[2];	//背景は2つの画像
+
+//敵データ(元)
+CHARACTOR teki_moto[TEKI_KIND];
+
+//実際の敵のデータ
+CHARACTOR teki_moto[TEKI_MAX];
+
+//敵データのパス
+char tekiPath[TEKI_KIND][255] =
+{
+	{".\\Image\\teki_blue.png"},
+	{".\\Image\\teki_gray.png"},
+	{".\\Image\\teki_green.png"},
+	{".\\Image\\teki_mizu.png"},
+	{".\\Image\\teki_purple.png"},
+	{".\\Image\\teki_red.png"},
+	{".\\Image\\teki_red_big.png"},
+	{".\\Image\\teki_yellow.png"},
+};
 
 //プロトタイプ宣言
 VOID Title(VOID);		//タイトル画面
@@ -259,10 +283,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 		}
 
-
-
-
-
 		//FPS値を描画
 		FPSDraw();
 
@@ -275,6 +295,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	//読み込んだ画像を開放
 	for (int i = 0; i < TAMA_DIV_MAX; i++) { DeleteGraph(tama_moto.handle[i]); }
+
+	//プレイヤーの解放
+	DeleteGraph(player.img.handle);
+
+	//背景画像の解放
+	DeleteGraph(back[0].handle);
+	DeleteGraph(back[1].handle);
 
 	DxLib_End();				// ＤＸライブラリ使用の終了処理
 
@@ -329,6 +356,28 @@ BOOL GameLoad(VOID)
 	player.img.y = GAME_HEIGHT / 2 - player.img.height;
 	CollUpadatePlayer(&player);	//当たり判定の更新
 	player.img.IsDraw = TRUE;	//描画する
+
+	//背景の画像の読込①
+	if (LoadImageMem(&back[0], ".\\Image\\hoshi.png") == FALSE) { return FALSE; }
+	back[0].x = 0;
+	back[0].y = -back[0].height;	//画像の高さ分、位置を上にあげる
+	back[0].IsDraw = TRUE;	//描画する
+
+		//背景の画像の読込②
+	if (LoadImageMem(&back[1], ".\\Image\\hoshi_rev.png") == FALSE) { return FALSE; }
+	back[1].x = 0;
+	back[1].y = 0;
+	back[1].IsDraw = TRUE;	//描画する
+
+	//敵の画像を読み込む
+	for (int i = 0; i < TEKI_KIND; i++)
+	{
+		if (LoadImageMem(&teki_moto[i].img, ".\\Image\\player.png") == FALSE) { return FALSE; }
+		teki_moto[0].img.x = GAME_WIDTH / 2 - teki_moto[i].img.width;
+		teki_moto[0].img.y = -teki_moto[i].img.height;
+		CollUpadatePlayer(&teki_moto[i]);	//当たり判定の更新
+		teki_moto[0].img.IsDraw = FALSE;	//描画する
+	}
 
 	return TRUE;	//	全て読み込めた!
 }
@@ -476,6 +525,16 @@ VOID GameInit(VOID)
 	CollUpadatePlayer(&player);	//当たり判定の更新
 	player.speed = 6;
 	player.img.IsDraw = TRUE;	//描画する
+
+		//背景の画像の読込①
+	back[0].x = 0;
+	back[0].y = -back[0].height;	//画像の高さ分、位置を上にあげる
+	back[0].IsDraw = TRUE;	//描画する
+
+		//背景の画像の読込②
+	back[1].x = 0;
+	back[1].y = 0;
+	back[1].IsDraw = TRUE;	//描画する
 }
 
 VOID ChangeScene(GAME_SCENE scene)
@@ -675,6 +734,9 @@ VOID PlayProc(VOID)
 				//半径を足す
 				tama[i].radius += tama[i].Speed;
 
+				//弾の当たり判定を更新
+				CollUpadateTama(&tama[i]);
+
 				//画面買いに出たら、描画しない
 				if (tama[i].y + tama[i].height < 0 ||	//画面外（上）
 					tama[i].y > GAME_HEIGHT ||			//画面外（下）
@@ -722,6 +784,22 @@ VOID ShotTama(TAMA* tama, float deg)
 /// </summary>
 VOID PlayDraw(VOID)
 {
+	//背景の描画
+	for  (int i = 0; i < 2; i++)
+	{
+		//描画
+		DrawGraph(back[i].x, back[i].y, back[i].handle, TRUE);
+
+		//画像が下まで行ったとき
+		if (back[i].y > GAME_HEIGHT)
+		{
+			back[i].y = -back[i].height + 1;	//高さ分、上に戻す
+		}
+
+		//画像を下に動かす
+		back[i].y++;
+	}
+
 	//プレイヤーの描画
 	if (player.img.IsDraw == TRUE)
 	{
